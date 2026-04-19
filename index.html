@@ -3,79 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoScan AI - Akıllı Atık Analizi</title>
+    <title>EcoScan AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <style>
-        body { background: #052e16; color: #f1f5f9; font-family: sans-serif; margin: 0; overflow: hidden; }
-        .page { display: none; min-height: 100vh; width: 100%; flex-direction: column; }
-        .active { display: flex; }
-        #reader { width: 100% !important; border: none !important; }
-        .scan-overlay { position: absolute; inset: 0; border: 2px solid #4ade80; border-radius: 24px; pointer-events: none; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        body { background: #052e16; color: white; font-family: sans-serif; overflow: hidden; }
+        #reader__scan_region video { object-fit: cover !important; border-radius: 2rem; }
     </style>
 </head>
 <body>
-
-    <div id="home-page" class="page active justify-between px-6 py-10 bg-gradient-to-b from-[#052e16] to-[#081612]">
-        <div class="space-y-6">
-            <div class="inline-flex items-center gap-2 rounded-full border border-green-700/70 bg-green-900/40 px-4 py-2 text-sm font-medium text-green-200 backdrop-blur-md">
-                🌱 EcoScan AI Aktif
-            </div>
-            <h1 class="text-4xl font-extrabold tracking-tight">Akıllı Atık Takibi</h1>
-            <p class="text-green-100/70 text-lg">Atıkları tara, puan kazan ve doğayı koru.</p>
-
-            <div id="result-card" class="hidden bg-white/10 border border-white/20 p-6 rounded-3xl backdrop-blur-xl animate-bounce">
-                <p class="text-xs font-bold text-green-400 uppercase tracking-widest">Analiz Edildi</p>
-                <p id="product-name" class="text-2xl font-bold mt-1 text-white">Plastik Şişe</p>
-                <p id="recycle-tip" class="text-sm text-green-200 mt-2">Mavi Geri Dönüşüm Kutusuna Atın.</p>
+    <div id="home-page" class="flex flex-col min-h-screen p-6 justify-between bg-gradient-to-b from-[#052e16] to-black">
+        <div class="space-y-4">
+            <h1 class="text-3xl font-bold text-green-400">EcoScan AI</h1>
+            <p class="text-gray-300">Barkodu çerçevenin içine getirin ve netleşmesini bekleyin.</p>
+            <div id="status" class="hidden p-4 bg-green-500/20 border border-green-500 rounded-2xl text-center">
+                <p id="scanned-text" class="font-mono font-bold text-xl"></p>
             </div>
         </div>
-
-        <button onclick="startScanning()" class="w-full bg-gradient-to-r from-green-400 to-emerald-500 py-5 rounded-3xl text-green-950 font-black text-xl shadow-2xl active:scale-95 transition-all">
-            TARAMAYI BAŞLAT 📸
-        </button>
+        <button onclick="startScan()" class="w-full bg-green-500 py-5 rounded-3xl text-black font-black text-xl shadow-2xl">TARAMAYI BAŞLAT</button>
     </div>
 
-    <div id="scan-page" class="page items-center justify-center bg-black p-5">
-        <div class="relative w-full max-w-sm aspect-square">
-            <div id="reader" class="rounded-[40px] overflow-hidden"></div>
-            <div class="scan-overlay shadow-[0_0_50px_rgba(74,222,128,0.4)]"></div>
-        </div>
-        <p class="mt-8 text-green-400 font-medium animate-pulse text-lg">Atık Tanımlanıyor...</p>
-        <button onclick="stopScanning()" class="mt-12 px-10 py-3 bg-white/10 border border-white/20 rounded-full text-white">Vazgeç</button>
+    <div id="scan-container" class="hidden fixed inset-0 bg-black z-50 flex-col items-center justify-center p-4">
+        <div id="reader" class="w-full max-w-sm rounded-3xl overflow-hidden"></div>
+        <button onclick="stopScan()" class="mt-10 px-8 py-3 bg-white/10 rounded-full text-white">İptal Et</button>
     </div>
 
     <script>
-        let html5QrCode;
+        let scanner;
 
-        function startScanning() {
-            document.getElementById('home-page').classList.remove('active');
-            document.getElementById('scan-page').classList.add('active');
+        function startScan() {
+            document.getElementById('scan-container').style.display = 'flex';
+            scanner = new Html5Qrcode("reader");
+            
+            const config = { 
+                fps: 20, // Daha hızlı kare hızı
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            };
 
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-                // SİMÜLE EDİLMİŞ AI ANALİZİ
-                const results = [
-                    { name: "Cam Şişe", tip: "Cam kumbarasına atınız. +10 Puan!" },
-                    { name: "Kağıt Ambalaj", tip: "Mavi kutuya atınız. +5 Puan!" },
-                    { name: "Plastik Atık", tip: "Sarı/Mavi kutuya atınız. +8 Puan!" }
-                ];
-                const randomResult = results[Math.floor(Math.random() * results.length)];
-                
-                document.getElementById('product-name').innerText = randomResult.name;
-                document.getElementById('recycle-tip').innerText = randomResult.tip;
-                document.getElementById('result-card').classList.remove('hidden');
-                
-                stopScanning();
+            // Kamerayı başlat ve barkodu yakala
+            scanner.start(
+                { facingMode: "environment" }, 
+                config,
+                (decodedText) => {
+                    // OKUMA BAŞARILI
+                    document.getElementById('scanned-text').innerText = "Sonuç: " + decodedText;
+                    document.getElementById('status').classList.remove('hidden');
+                    stopScan();
+                    alert("Barkod Algılandı: " + decodedText);
+                },
+                (errorMessage) => {
+                    // Sürekli hata basmasın diye burayı boş bırakıyoruz
+                }
+            ).catch((err) => {
+                alert("Kamera hatası: " + err);
             });
         }
 
-        function stopScanning() {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('scan-page').classList.remove('active');
-                    document.getElementById('home-page').classList.add('active');
+        function stopScan() {
+            if (scanner) {
+                scanner.stop().then(() => {
+                    document.getElementById('scan-container').style.display = 'none';
                 });
             }
         }
