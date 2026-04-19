@@ -3,64 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoScan - Akıllı Atık Takibi</title>
+    <title>EcoScan - Akıllı Atık</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: linear-gradient(to bottom, #052e16, #0b1f19, #081612); min-height: 100vh; color: #f1f5f9; font-family: sans-serif; overflow: hidden; }
-        .video-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 50; }
+        body { background: #052e16; color: #f1f5f9; font-family: sans-serif; margin: 0; overflow: hidden; }
+        .page { display: none; min-height: 100vh; width: 100%; position: absolute; top: 0; left: 0; }
+        .active { display: flex; }
+        .scan-line { position: absolute; top: 0; left: 0; width: 100%; h-0.5; background: #4ade80; animation: scan 2s linear infinite; }
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
     </style>
 </head>
 <body>
-    <div id="app"></div>
-    <div id="camera-overlay" class="video-overlay flex-col">
-        <div class="relative w-64 h-64 border-2 border-green-400 rounded-3xl overflow-hidden shadow-[0_0_20px_#4ade80]">
-            <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
-            <div class="absolute inset-0 border-[20px] border-black/40 pointer-events-none"></div>
-            <div class="absolute top-1/2 left-0 w-full h-0.5 bg-green-400 animate-bounce"></div>
+
+    <div id="home-page" class="page active flex-col justify-between px-5 py-8 bg-gradient-to-b from-[#052e16] via-[#0b1f19] to-[#081612]">
+        <div class="space-y-5">
+            <div class="inline-flex items-center gap-2 rounded-full border border-green-700/70 bg-green-900/40 px-3 py-1.5 text-sm font-medium text-green-200">
+                EcoScan
+            </div>
+            <h1 class="text-3xl font-semibold tracking-tight text-[#effaf3]">Akıllı Atık Takibi</h1>
+            <p class="text-sm text-green-100/70">Kurulum tamamlandı. Tasarım başarıyla yayına alındı.</p>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="rounded-2xl border border-green-800/60 bg-green-900/40 p-4">
+                    <p class="text-xs text-green-100/70">Toplam Tasarruf</p>
+                    <p class="mt-1 text-lg font-semibold text-[#f3fff7]">0.00 kg CO2</p>
+                </div>
+                <div class="rounded-2xl border border-green-700/50 bg-green-700/20 p-4">
+                    <p class="text-xs text-green-100/70">Etki Kartı</p>
+                    <p class="mt-1 text-lg font-semibold text-[#f3fff7]">0 Ağaç</p>
+                </div>
+            </div>
         </div>
-        <button onclick="closeCamera()" class="mt-8 px-6 py-2 bg-red-500/20 border border-red-500 rounded-full text-red-100">Kapat</button>
+
+        <button onclick="goToScan()" class="w-full bg-gradient-to-r from-green-400 to-green-300 py-4 rounded-2xl text-green-950 font-bold shadow-xl active:scale-95 transition-all">
+            Tarama Başlat
+        </button>
+    </div>
+
+    <div id="scan-page" class="page flex-col items-center justify-center bg-black">
+        <div class="relative w-full h-[70vh] flex items-center justify-center">
+            <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+            
+            <div class="absolute w-64 h-64 border-2 border-green-400 rounded-3xl shadow-[0_0_20px_#4ade80]">
+                <div class="scan-line shadow-[0_0_10px_#4ade80]"></div>
+            </div>
+            
+            <div class="absolute bottom-10 text-center">
+                <p class="text-green-400 font-medium animate-pulse text-lg">Atık Aranıyor...</p>
+            </div>
+        </div>
+
+        <button onclick="goToHome()" class="mt-10 px-10 py-3 bg-white/10 border border-white/20 rounded-full text-white font-medium">
+            Geri Dön
+        </button>
     </div>
 
     <script>
-        function render(isLoading) {
-            document.getElementById('app').innerHTML = `
-            <section class="mx-auto flex min-h-screen w-full max-w-md flex-col justify-between px-5 py-8">
-                <div class="space-y-5">
-                    <div class="inline-flex items-center gap-2 rounded-full border border-green-700/70 bg-green-900/40 px-3 py-1.5 text-sm font-medium text-green-200">
-                        EcoScan
-                    </div>
-                    <h1 class="text-3xl font-semibold tracking-tight text-[#effaf3]">Akıllı Atık Takibi</h1>
-                    <p class="text-sm text-green-100/70">Tasarım ve Kamera Modülü başarıyla entegre edildi.</p>
-                </div>
+        function goToScan() {
+            // Sayfa Değiştir
+            document.getElementById('home-page').classList.remove('active');
+            document.getElementById('scan-page').classList.add('active');
 
-                <button onclick="startCamera()" class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-green-400 to-green-300 px-5 py-4 text-base font-semibold text-green-950 shadow-xl transition-all active:scale-95">
-                    Tarama Başlat
-                </button>
-            </section>`;
-        }
-
-        async function startCamera() {
-            const overlay = document.getElementById('camera-overlay');
+            // Kamerayı Başlat
             const video = document.getElementById('video');
-            overlay.style.display = 'flex';
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                video.srcObject = stream;
-            } catch (err) {
-                alert("Kamera izni reddedildi veya cihazda kamera bulunamadı.");
-                overlay.style.display = 'none';
-            }
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => { video.srcObject = stream; })
+                .catch(err => { alert("Kamera açılamadı (İzin vermeniz gerekiyor)"); });
         }
 
-        function closeCamera() {
+        function goToHome() {
+            // Sayfa Değiştir
+            document.getElementById('scan-page').classList.remove('active');
+            document.getElementById('home-page').classList.add('active');
+
+            // Kamerayı Kapat
             const video = document.getElementById('video');
             if (video.srcObject) {
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
-            document.getElementById('camera-overlay').style.display = 'none';
         }
-
-        render(false);
     </script>
 </body>
 </html>
